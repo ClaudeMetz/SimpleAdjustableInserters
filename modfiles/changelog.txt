@@ -2,11 +2,11 @@
 Version: 0.00.00
 Date: 00. 00. 0000
   Features:
-    - 
+    -
   Changes:
-    - 
+    -
   Bugfixes:
-    - 
+    - Fixed that adjusting dropoff would only work on belts, not splitters or undergrounds
 
 ---------------------------------------------------------------------------------------------------
 Version: 2.0.1

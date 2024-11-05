@@ -1,4 +1,13 @@
 -- ** Util **
+local belt_types = {
+    ["transport-belt"] = true,
+    ["linked-belt"] = true,
+    ["underground-belt"] = true,
+    ["splitter"] = true,
+    ["lane-splitter"] = true,
+    ["loader"] = true,
+    ["loader-1x1"] = true
+}
 
 ---@param a number
 ---@param b number
@@ -35,8 +44,10 @@ end
 ---@return BeltDirection? belt_direction
 local function determine_belt_direction(inserter)
     local position = tile_center(inserter.drop_position)
-    local target = inserter.surface.find_entities_filtered{position = position, type = "transport-belt"}[1]
-        or inserter.surface.find_entities_filtered{position = position, ghost_type = "transport-belt"}[1]
+    local target = nil
+    for _, entity in pairs(inserter.surface.find_entities_filtered{position = position}) do
+        if belt_types[entity.type] or belt_types[entity.ghost_type] then target = entity; break end
+    end
     if not target then return nil end
 
     local inserter_mod  = inserter.direction % defines.direction.south  ---@type integer
@@ -113,3 +124,4 @@ script.on_event("sai_rotate_pickup_anti_clockwise", rotate_pickup_direction)
 -- TODO
 -- Play around with using inserter-throughput-lib for throughput display
 -- Add map settings to disable specific features
+-- Could maybe adjust ghosts by pasting blueprint over it, seems to work manually
