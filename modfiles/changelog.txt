@@ -2,11 +2,17 @@
 Version: 0.00.00
 Date: 00. 00. 0000
   Features:
-    - Added setting for 0° inserters, disabled by default
+    - 
   Changes:
-    -
+    - 
   Bugfixes:
-    -
+    - 
+
+---------------------------------------------------------------------------------------------------
+Version: 2.0.3
+Date: 05. 11. 2024
+  Features:
+    - Added setting for 0° inserters, disabled by default
 
 ---------------------------------------------------------------------------------------------------
 Version: 2.0.2
