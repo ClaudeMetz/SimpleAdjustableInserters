@@ -26,18 +26,23 @@ end
 
 ---@param event EventData.CustomInputEvent
 ---@return LuaEntity? inserter
+---@return LuaEntityPrototype? prototype
 local function find_inserter(event)
     local player = game.get_player(event.player_index)  --[[@as LuaPlayer]]
 
-    local prototype = event.selected_prototype
-    if not prototype or prototype.derived_type ~= "inserter" then
-        if prototype and prototype.derived_type == "entity-ghost" then
-            player.create_local_flying_text{text={"sai.ghost_inserter"}, create_at_cursor=true}
-        end
-        return nil
-    end
+    local prototype_data = event.selected_prototype
+    if not prototype_data then return nil, nil end
 
-    return player.surface.find_entity(prototype.name, tile_center(event.cursor_position))
+    local entity = player.surface.find_entity(prototype_data.name, tile_center(event.cursor_position))
+    if not entity then return nil, nil end
+
+    if prototype_data.derived_type == "inserter" then
+        return entity, entity.prototype
+    elseif prototype_data.derived_type == "entity-ghost" and entity.ghost_type == "inserter" then
+        return entity, prototypes.entity[entity.ghost_name]
+    else
+        return nil, nil
+    end
 end
 
 ---@param inserter LuaEntity
@@ -64,14 +69,14 @@ end
 local function shift_drop_position(event)
     if not settings.global["sai-set-drop-enable"].value then return end
 
-    local inserter = find_inserter(event)
-    if not inserter then return end
+    local inserter, prototype = find_inserter(event)
+    if not inserter or not prototype then return end
 
     local direction = string.gsub(event.input_name, "sai_set_drop_", "")  ---@type DropDirection
     local belt_direction = determine_belt_direction(inserter)
 
     -- Inserter drop_position is always relative to its direction, so we just apply the y offset
-    local relative_drop = inserter.prototype.inserter_drop_position  --[[@as Vector]]
+    local relative_drop = prototype.inserter_drop_position  --[[@as Vector]]
     local para_mod = relative_drop[1]  -- the parallel direction is always the x coordinate
     local perp_mod = relative_drop[2]  -- the perpendicular direction is always the y coordinate
     -- Sets the the drop point to the default if no belt is found
@@ -103,12 +108,13 @@ script.on_event("sai_set_drop_backwards", shift_drop_position)
 local function rotate_pickup_direction(event)
     if not settings.global["sai-rotate-pickup-enable"].value then return end
 
-    local inserter = find_inserter(event)
-    if not inserter then return end
+    local inserter, prototype = find_inserter(event)
+    if not inserter or not prototype then return end
+
     local direction = string.gsub(event.input_name, "sai_rotate_pickup_", "")  ---@type Rotation
 
     -- Inserter pickup_position is always relative to its direction, so we just apply the y offset
-    local relative_pickup = inserter.prototype.inserter_pickup_position  --[[@as Vector]]
+    local relative_pickup = prototype.inserter_pickup_position  --[[@as Vector]]
     local pickup_modifier = relative_pickup[2] * (direction == "clockwise" and -1 or 1)
     local center_x, center_y = inserter.position.x, inserter.position.y
 
@@ -127,4 +133,3 @@ script.on_event("sai_rotate_pickup_anti_clockwise", rotate_pickup_direction)
 
 -- TODO
 -- Play around with using inserter-throughput-lib for throughput display
--- Could maybe adjust ghosts by pasting blueprint over it, seems to work manually

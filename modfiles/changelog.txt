@@ -2,6 +2,7 @@
 Version: 0.00.00
 Date: 00. 00. 0000
   Features:
+    - Implemented support for adjusting ghost inserters
     - Added settings to disable specific functionality of the mod
   Changes:
     -
