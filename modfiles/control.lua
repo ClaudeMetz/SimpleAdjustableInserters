@@ -121,10 +121,21 @@ local function rotate_pickup_direction(event)
     local threeway_x = threeway_compare(center_x, inserter.pickup_position.x)
     local threeway_y = threeway_compare(center_y, inserter.pickup_position.y)
     -- This looks arcane, but it cancels out correctly with either threeway being 0
-    inserter.pickup_position = {
+    local pickup_position = {
         center_x + threeway_y * pickup_modifier,
         center_y - threeway_x * pickup_modifier
     }
+
+    if not settings.global["sai-zero-degree-inserter"].value then
+        local drop_center = tile_center(inserter.drop_position)
+        if pickup_position[1] == drop_center[1] and pickup_position[2] == drop_center[2] then
+            local player = game.get_player(event.player_index)  --[[@as LuaPlayer]]
+            player.create_local_flying_text{text={"sai.zero-degree-disabled"}, create_at_cursor=true}
+            return
+        end
+    end
+
+    inserter.pickup_position = pickup_position
 end
 
 script.on_event("sai_rotate_pickup_clockwise", rotate_pickup_direction)
