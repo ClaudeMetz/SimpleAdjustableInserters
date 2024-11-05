@@ -62,6 +62,8 @@ end
 
 ---@param event EventData.CustomInputEvent
 local function shift_drop_position(event)
+    if not settings.global["sai-set-drop-enable"].value then return end
+
     local inserter = find_inserter(event)
     if not inserter then return end
 
@@ -99,6 +101,8 @@ script.on_event("sai_set_drop_backwards", shift_drop_position)
 
 ---@param event EventData.CustomInputEvent
 local function rotate_pickup_direction(event)
+    if not settings.global["sai-rotate-pickup-enable"].value then return end
+
     local inserter = find_inserter(event)
     if not inserter then return end
     local direction = string.gsub(event.input_name, "sai_rotate_pickup_", "")  ---@type Rotation
@@ -123,5 +127,4 @@ script.on_event("sai_rotate_pickup_anti_clockwise", rotate_pickup_direction)
 
 -- TODO
 -- Play around with using inserter-throughput-lib for throughput display
--- Add map settings to disable specific features
 -- Could maybe adjust ghosts by pasting blueprint over it, seems to work manually
