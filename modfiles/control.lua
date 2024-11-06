@@ -52,7 +52,9 @@ local function determine_belt_direction(inserter)
     local position = tile_center(inserter.drop_position)
     local target = nil
     for _, entity in pairs(inserter.surface.find_entities_filtered{position = position}) do
-        if belt_types[entity.type] or belt_types[entity.ghost_type] then target = entity; break end
+        if (entity.type == "entity-ghost" and belt_types[entity.ghost_type]) or belt_types[entity.type] then
+            target = entity; break
+        end
     end
     if not target then return nil end
 
