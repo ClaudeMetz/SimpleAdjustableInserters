@@ -80,12 +80,15 @@ local function shift_drop_position(event)
     local relative_drop = prototype.inserter_drop_position  --[[@as Vector]]
     local para_mod = relative_drop[1]  -- the parallel direction is always the x coordinate
     local perp_mod = relative_drop[2]  -- the perpendicular direction is always the y coordinate
-    -- Sets the the drop point to the default if no belt is found
 
     if belt_direction == "parallel" then
         perp_mod = perp_mod + (direction == "forwards" and 0 or -0.5)
     elseif belt_direction == "perpendicular" then
         para_mod = para_mod + (direction == "forwards" and 0.25 or -0.25)
+    else
+        local player = game.get_player(event.player_index)  --[[@as LuaPlayer]]
+        player.create_local_flying_text{text={"sai.no-belt-found"}, create_at_cursor=true}
+        -- Continue to set the drop position to the default
     end
 
     local center_x, center_y = inserter.position.x, inserter.position.y
