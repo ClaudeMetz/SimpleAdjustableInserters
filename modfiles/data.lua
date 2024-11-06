@@ -19,7 +19,7 @@ data:extend{
     {
         type = "custom-input",
         name = "sai_rotate_pickup_clockwise",
-        key_sequence = "SHIFT + mouse-wheel-up",
+        key_sequence = "ALT + mouse-wheel-up",
         include_selected_prototype = true,
         consuming = "game-only",
         order = "sai-c"
@@ -27,7 +27,7 @@ data:extend{
     {
         type = "custom-input",
         name = "sai_rotate_pickup_anti_clockwise",
-        key_sequence = "SHIFT + mouse-wheel-down",
+        key_sequence = "ALT + mouse-wheel-down",
         include_selected_prototype = true,
         consuming = "game-only",
         order = "sai-d"
