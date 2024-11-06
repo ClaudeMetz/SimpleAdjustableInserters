@@ -32,6 +32,7 @@ local function find_inserter(event)
 
     local prototype_data = event.selected_prototype
     if not prototype_data then return nil, nil end
+    if prototype_data.base_type ~= "entity" then return nil, nil end
 
     local entity = player.surface.find_entity(prototype_data.name, tile_center(event.cursor_position))
     if not entity then return nil, nil end
