@@ -30,16 +30,12 @@ end
 local function find_inserter(event)
     local player = game.get_player(event.player_index)  --[[@as LuaPlayer]]
 
-    local prototype_data = event.selected_prototype
-    if not prototype_data then return nil, nil end
-    if prototype_data.base_type ~= "entity" then return nil, nil end
-
-    local entity = player.surface.find_entity(prototype_data.name, tile_center(event.cursor_position))
+    local entity = player.selected
     if not entity then return nil, nil end
 
-    if prototype_data.derived_type == "inserter" then
+    if entity.type == "inserter" then
         return entity, entity.prototype
-    elseif prototype_data.derived_type == "entity-ghost" and entity.ghost_type == "inserter" then
+    elseif entity.type == "entity-ghost" and entity.ghost_type == "inserter" then
         return entity, prototypes.entity[entity.ghost_name]
     else
         return nil, nil
