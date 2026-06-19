@@ -54,7 +54,7 @@ local function determine_belt_direction(inserter)
     end
     if not target then return nil end
 
-    local inserter_mod  = inserter.direction % defines.direction.south  ---@type integer
+    local inserter_mod = inserter.direction % defines.direction.south  ---@type integer
     local target_mod = target.direction % defines.direction.south  ---@type integer
     return (inserter_mod == target_mod) and "perpendicular" or "parallel"
 end
@@ -144,5 +144,49 @@ script.on_event("sai_rotate_pickup_clockwise", rotate_pickup_direction)
 script.on_event("sai_rotate_pickup_anti_clockwise", rotate_pickup_direction)
 
 
--- TODO
--- Play around with using inserter-throughput-lib for throughput display
+-- ** Reach adjustement prevention **
+---@param event EventData.on_entity_settings_pasted
+local function prevent_reach_adjustement(event)
+    if settings.global["sai-allow-reach-adjustement"].value then return end
+
+    local source, destination = event.source, event.destination
+    if source.type ~= "inserter" or destination.type ~= "inserter" then return end
+
+    local cx, cy = destination.position.x, destination.position.y
+    local src_p, dest_p = source.prototype, destination.prototype
+
+    -- Self-inverse transform between inserter-local (para, perp) and world-space offset
+    local function wo(dir, p, q)
+        if dir == defines.direction.north then return p, q
+        elseif dir == defines.direction.east then return -q, -p
+        elseif dir == defines.direction.south then return -p, -q
+        else return q, p end
+    end
+
+    do  -- Drop: preserve lane offset relative to each inserter's own prototype reach
+        local sd, dd = src_p.inserter_drop_position, dest_p.inserter_drop_position
+        local p, q = wo(source.direction, source.drop_position.x - source.position.x, source.drop_position.y - source.position.y)
+        local wx, wy = wo(destination.direction, dd[1] + p - sd[1], dd[2] + q - sd[2])
+        destination.drop_position = {cx + wx, cy + wy}
+    end
+
+    do  -- Pickup: preserve world-space rotation angle so 90° rotations paste correctly
+        local sp, dp = src_p.inserter_pickup_position, dest_p.inserter_pickup_position
+        local spwx, spwy = wo(source.direction, sp[1], sp[2])
+        local sawx = source.pickup_position.x - source.position.x
+        local sawy = source.pickup_position.y - source.position.y
+        local dot = spwx * sawx + spwy * sawy
+        local cross = spwx * sawy - spwy * sawx
+        local len_sq = spwx * spwx + spwy * spwy
+        local dpwx, dpwy = wo(destination.direction, dp[1], dp[2])
+        destination.pickup_position = {
+            cx + (dpwx * dot - dpwy * cross) / len_sq,
+            cy + (dpwx * cross + dpwy * dot) / len_sq
+        }
+    end
+end
+
+script.on_event(defines.events.on_entity_settings_pasted, prevent_reach_adjustement)
+
+
+-- TODO Play around with using inserter-throughput-lib for throughput display

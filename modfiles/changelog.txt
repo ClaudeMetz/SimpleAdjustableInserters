@@ -2,9 +2,10 @@
 Version: 0.00.00
 Date: 00. 00. 0000
   Features:
-    -
-  Changes:
     - Update for Factorio 2.1
+    - Added a setting to prevent being able to change inserter reach via copy-paste
+  Changes:
+    -
   Bugfixes:
     -
 
