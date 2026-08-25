@@ -10,10 +10,6 @@ Version: 2.1.2
 Date: 25. 08. 2026
   Features:
     - Added subtle sound feedback when adjusting an inserter's drop or pickup point
-  Changes:
-    - 
-  Bugfixes:
-    - 
 
 ---------------------------------------------------------------------------------------------------
 Version: 2.1.1
