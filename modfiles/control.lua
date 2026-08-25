@@ -19,8 +19,9 @@ local function threeway_compare(a, b)
 end
 
 ---@param position MapPosition
----@return MapPosition center_position
+---@return [double, double] center_position
 local function tile_center(position)
+    ---@cast position MapPosition.struct
     return {math.floor(position.x) + 0.5, math.floor(position.y) + 0.5}
 end
 
@@ -67,8 +68,8 @@ local function determine_belt_direction(inserter)
     end
     if not target then return nil end
 
-    local inserter_mod = inserter.direction % defines.direction.south  ---@type integer
-    local target_mod = target.direction % defines.direction.south  ---@type integer
+    local inserter_mod = inserter.direction % defines.direction.south
+    local target_mod = target.direction % defines.direction.south
     return (inserter_mod == target_mod) and "perpendicular" or "parallel"
 end
 
@@ -85,11 +86,11 @@ local function shift_drop_position(event)
     if not inserter or not prototype then return end
 
     local player = game.get_player(event.player_index)  ---@as LuaPlayer
-    local direction = string.gsub(event.input_name, "sai_set_drop_", "")  ---@type DropDirection
+    local direction = string.gsub(event.input_name, "sai_set_drop_", "")  ---@as DropDirection
     local belt_direction = determine_belt_direction(inserter)
 
     -- Inserter drop_position is always relative to its direction, so we just apply the y offset
-    local relative_drop = prototype.inserter_drop_position  ---@as Vector
+    local relative_drop = prototype.inserter_drop_position  ---@as [double, double]
     local para_mod = relative_drop[1]  -- the parallel direction is always the x coordinate
     local perp_mod = relative_drop[2]  -- the perpendicular direction is always the y coordinate
 
@@ -102,16 +103,17 @@ local function shift_drop_position(event)
         -- Continue to set the drop position to the default
     end
 
-    local center_x, center_y = inserter.position.x, inserter.position.y
+    local center = inserter.position  ---@as MapPosition.struct
+    local center_x, center_y = center.x, center.y
     local positions = {
         [defines.direction.north] = {center_x + para_mod, center_y + perp_mod},
         [defines.direction.east] = {center_x - perp_mod, center_y - para_mod},
         [defines.direction.south] = {center_x - para_mod, center_y - perp_mod},
         [defines.direction.west] = {center_x + perp_mod, center_y + para_mod}
-    }  ---@type { [defines.direction]: MapPosition }
+    }  ---@type { [defines.direction]: [double, double] }
 
     local new_position = positions[inserter.direction]
-    local old_position = inserter.drop_position
+    local old_position = inserter.drop_position  ---@as MapPosition.struct
     inserter.drop_position = new_position
 
     -- Only play a sound if the position actually meaningfully moved. The epsilon is
@@ -120,7 +122,7 @@ local function shift_drop_position(event)
         or math.abs(old_position.y - new_position[2]) > 0.01
 
     if moved and belt_direction ~= nil then
-        player.play_sound{path = "sai-adjusted", position = inserter.position}
+        player.play_sound{path = "sai-adjusted", position = center}
     end
 end
 
@@ -139,15 +141,17 @@ local function rotate_pickup_direction(event)
     if not inserter or not prototype then return end
 
     local player = game.get_player(event.player_index)  ---@as LuaPlayer
-    local direction = string.gsub(event.input_name, "sai_rotate_pickup_", "")  ---@type Rotation
+    local direction = string.gsub(event.input_name, "sai_rotate_pickup_", "")  ---@as Rotation
 
     -- Inserter pickup_position is always relative to its direction, so we just apply the y offset
-    local relative_pickup = prototype.inserter_pickup_position  ---@as Vector
+    local relative_pickup = prototype.inserter_pickup_position  ---@as [double, double]
     local pickup_modifier = relative_pickup[2] * (direction == "clockwise" and -1 or 1)
-    local center_x, center_y = inserter.position.x, inserter.position.y
+    local center = inserter.position  ---@as MapPosition.struct
+    local center_x, center_y = center.x, center.y
 
-    local threeway_x = threeway_compare(center_x, inserter.pickup_position.x)
-    local threeway_y = threeway_compare(center_y, inserter.pickup_position.y)
+    local current_pickup = inserter.pickup_position  ---@as MapPosition.struct
+    local threeway_x = threeway_compare(center_x, current_pickup.x)
+    local threeway_y = threeway_compare(center_y, current_pickup.y)
     -- This looks arcane, but it cancels out correctly with either threeway being 0
     local pickup_position = {
         center_x + threeway_y * pickup_modifier,
@@ -163,7 +167,7 @@ local function rotate_pickup_direction(event)
     end
 
     inserter.pickup_position = pickup_position
-    player.play_sound{path = "sai-adjusted", position = inserter.position}
+    player.play_sound{path = "sai-adjusted", position = center}
 end
 
 script.on_event("sai_rotate_pickup_clockwise", rotate_pickup_direction)
@@ -178,7 +182,9 @@ local function prevent_reach_adjustement(event)
     local source, destination = event.source, event.destination
     if source.type ~= "inserter" or destination.type ~= "inserter" then return end
 
-    local cx, cy = destination.position.x, destination.position.y
+    local src_pos = source.position  ---@as MapPosition.struct
+    local dest_pos = destination.position  ---@as MapPosition.struct
+    local cx, cy = dest_pos.x, dest_pos.y
     local src_p, dest_p = source.prototype, destination.prototype
 
     -- Self-inverse transform between inserter-local (para, perp) and world-space offset
@@ -190,17 +196,21 @@ local function prevent_reach_adjustement(event)
     end
 
     do  -- Drop: preserve lane offset relative to each inserter's own prototype reach
-        local sd, dd = src_p.inserter_drop_position, dest_p.inserter_drop_position
-        local p, q = wo(source.direction, source.drop_position.x - source.position.x, source.drop_position.y - source.position.y)
+        local sd = src_p.inserter_drop_position  ---@as [double, double]
+        local dd = dest_p.inserter_drop_position  ---@as [double, double]
+        local src_drop = source.drop_position  ---@as MapPosition.struct
+        local p, q = wo(source.direction, src_drop.x - src_pos.x, src_drop.y - src_pos.y)
         local wx, wy = wo(destination.direction, dd[1] + p - sd[1], dd[2] + q - sd[2])
         destination.drop_position = {cx + wx, cy + wy}
     end
 
     do  -- Pickup: preserve world-space rotation angle so 90° rotations paste correctly
-        local sp, dp = src_p.inserter_pickup_position, dest_p.inserter_pickup_position
+        local sp = src_p.inserter_pickup_position  ---@as [double, double]
+        local dp = dest_p.inserter_pickup_position  ---@as [double, double]
+        local src_pickup = source.pickup_position  ---@as MapPosition.struct
         local spwx, spwy = wo(source.direction, sp[1], sp[2])
-        local sawx = source.pickup_position.x - source.position.x
-        local sawy = source.pickup_position.y - source.position.y
+        local sawx = src_pickup.x - src_pos.x
+        local sawy = src_pickup.y - src_pos.y
         local dot = spwx * sawx + spwy * sawy
         local cross = spwx * sawy - spwy * sawx
         local len_sq = spwx * spwx + spwy * spwy
