@@ -13,7 +13,6 @@ local blocked = util.copy(utility_sounds.cannot_build)  ---@as data.SoundPrototy
 blocked.type = "sound"
 blocked.name = "sai-blocked"
 blocked.volume = (blocked.volume or 1) * 0.5  -- scale, so a vanilla retune carries over
-blocked.aggregation = {max_count = 1, remove = false, count_already_playing = true}
 
 data:extend{adjusted, blocked}
 

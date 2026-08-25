@@ -44,13 +44,15 @@ end
 
 ---@param player LuaPlayer
 ---@param inserter LuaEntity
----@param success boolean
-local function play_adjustement_sound(player, inserter, success)
-    -- Volume and burst behaviour live on the prototypes in data.lua
-    player.play_sound{
-        path = success and "sai-adjusted" or "sai-blocked",
-        position = inserter.position
-    }
+---@param key string
+local function report_blocked(player, inserter, key)
+    storage.messages = storage.messages or {}
+    local last = storage.messages[player.index]
+    if last and last.key == key and game.tick - last.tick < 30 then return end
+
+    storage.messages[player.index] = {key = key, tick = game.tick}
+    player.create_local_flying_text{text = {"sai." .. key}, create_at_cursor = true}
+    player.play_sound{path = "sai-blocked", position = inserter.position}
 end
 
 ---@param inserter LuaEntity
@@ -96,7 +98,7 @@ local function shift_drop_position(event)
     elseif belt_direction == "perpendicular" then
         para_mod = para_mod + (direction == "forwards" and 0.25 or -0.25)
     else
-        player.create_local_flying_text{text={"sai.no-belt-found"}, create_at_cursor=true}
+        report_blocked(player, inserter, "no-belt-found")
         -- Continue to set the drop position to the default
     end
 
@@ -117,8 +119,8 @@ local function shift_drop_position(event)
     local moved = math.abs(old_position.x - new_position[1]) > 0.01
         or math.abs(old_position.y - new_position[2]) > 0.01
 
-    if moved or belt_direction == nil then
-        play_adjustement_sound(player, inserter, (belt_direction ~= nil))
+    if moved and belt_direction ~= nil then
+        player.play_sound{path = "sai-adjusted", position = inserter.position}
     end
 end
 
@@ -155,14 +157,13 @@ local function rotate_pickup_direction(event)
     if not settings.global["sai-zero-degree-inserter"].value then
         local drop_center = tile_center(inserter.drop_position)
         if pickup_position[1] == drop_center[1] and pickup_position[2] == drop_center[2] then
-            player.create_local_flying_text{text={"sai.zero-degree-disabled"}, create_at_cursor=true}
-            play_adjustement_sound(player, inserter, false)
+            report_blocked(player, inserter, "zero-degree-disabled")
             return
         end
     end
 
     inserter.pickup_position = pickup_position
-    play_adjustement_sound(player, inserter, true)
+    player.play_sound{path = "sai-adjusted", position = inserter.position}
 end
 
 script.on_event("sai_rotate_pickup_clockwise", rotate_pickup_direction)
