@@ -28,7 +28,7 @@ end
 ---@return LuaEntity? inserter
 ---@return LuaEntityPrototype? prototype
 local function find_inserter(event)
-    local player = game.get_player(event.player_index)  --[[@as LuaPlayer]]
+    local player = game.get_player(event.player_index)  ---@as LuaPlayer
 
     local entity = player.selected
     if not entity then return nil, nil end
@@ -40,6 +40,17 @@ local function find_inserter(event)
     else
         return nil, nil
     end
+end
+
+---@param player LuaPlayer
+---@param inserter LuaEntity
+---@param success boolean
+local function play_adjustement_sound(player, inserter, success)
+    -- Volume and burst behaviour live on the prototypes in data.lua
+    player.play_sound{
+        path = success and "sai-adjusted" or "sai-blocked",
+        position = inserter.position
+    }
 end
 
 ---@param inserter LuaEntity
@@ -71,11 +82,12 @@ local function shift_drop_position(event)
     local inserter, prototype = find_inserter(event)
     if not inserter or not prototype then return end
 
+    local player = game.get_player(event.player_index)  ---@as LuaPlayer
     local direction = string.gsub(event.input_name, "sai_set_drop_", "")  ---@type DropDirection
     local belt_direction = determine_belt_direction(inserter)
 
     -- Inserter drop_position is always relative to its direction, so we just apply the y offset
-    local relative_drop = prototype.inserter_drop_position  --[[@as Vector]]
+    local relative_drop = prototype.inserter_drop_position  ---@as Vector
     local para_mod = relative_drop[1]  -- the parallel direction is always the x coordinate
     local perp_mod = relative_drop[2]  -- the perpendicular direction is always the y coordinate
 
@@ -84,7 +96,6 @@ local function shift_drop_position(event)
     elseif belt_direction == "perpendicular" then
         para_mod = para_mod + (direction == "forwards" and 0.25 or -0.25)
     else
-        local player = game.get_player(event.player_index)  --[[@as LuaPlayer]]
         player.create_local_flying_text{text={"sai.no-belt-found"}, create_at_cursor=true}
         -- Continue to set the drop position to the default
     end
@@ -96,7 +107,19 @@ local function shift_drop_position(event)
         [defines.direction.south] = {center_x - para_mod, center_y - perp_mod},
         [defines.direction.west] = {center_x + perp_mod, center_y + para_mod}
     }  ---@type { [defines.direction]: MapPosition }
-    inserter.drop_position = positions[inserter.direction]
+
+    local new_position = positions[inserter.direction]
+    local old_position = inserter.drop_position
+    inserter.drop_position = new_position
+
+    -- Only play a sound if the position actually meaningfully moved. The epsilon is
+    -- needed because positions snap to the engine's 1/256 grid on the way back out.
+    local moved = math.abs(old_position.x - new_position[1]) > 0.01
+        or math.abs(old_position.y - new_position[2]) > 0.01
+
+    if moved or belt_direction == nil then
+        play_adjustement_sound(player, inserter, (belt_direction ~= nil))
+    end
 end
 
 script.on_event("sai_set_drop_forwards", shift_drop_position)
@@ -113,10 +136,11 @@ local function rotate_pickup_direction(event)
     local inserter, prototype = find_inserter(event)
     if not inserter or not prototype then return end
 
+    local player = game.get_player(event.player_index)  ---@as LuaPlayer
     local direction = string.gsub(event.input_name, "sai_rotate_pickup_", "")  ---@type Rotation
 
     -- Inserter pickup_position is always relative to its direction, so we just apply the y offset
-    local relative_pickup = prototype.inserter_pickup_position  --[[@as Vector]]
+    local relative_pickup = prototype.inserter_pickup_position  ---@as Vector
     local pickup_modifier = relative_pickup[2] * (direction == "clockwise" and -1 or 1)
     local center_x, center_y = inserter.position.x, inserter.position.y
 
@@ -131,13 +155,14 @@ local function rotate_pickup_direction(event)
     if not settings.global["sai-zero-degree-inserter"].value then
         local drop_center = tile_center(inserter.drop_position)
         if pickup_position[1] == drop_center[1] and pickup_position[2] == drop_center[2] then
-            local player = game.get_player(event.player_index)  --[[@as LuaPlayer]]
             player.create_local_flying_text{text={"sai.zero-degree-disabled"}, create_at_cursor=true}
+            play_adjustement_sound(player, inserter, false)
             return
         end
     end
 
     inserter.pickup_position = pickup_position
+    play_adjustement_sound(player, inserter, true)
 end
 
 script.on_event("sai_rotate_pickup_clockwise", rotate_pickup_direction)
